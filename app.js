@@ -2,63 +2,12 @@ const express = require("express");
 const app = express();
 const connectDB = require("./src/config/database");
 const User = require("./src/models/user");
-const { validationSignUpData } = require("./src/utils/validation");
-const bcrypt = require("bcrypt");
-const jwt =require("jsonwebtoken")
+
 const cookieParser = require("cookie-parser");
+
 app.use(cookieParser());
 app.use(express.json());
 
-app.post("/signup", async (req, res) => {
-  try {
-    validationSignUpData(req);
-
-    const { firstName, lastName, emailId, password } = req.body;
-    const passwordHash = await bcrypt.hash(password, 10);
-    console.log(passwordHash);
-
-    const user = new User({
-      firstName,
-      lastName,
-      emailId,
-      password: passwordHash,
-    });
-
-    await user.save();
-
-    res.send("User added Successfully");
-  } catch (err) {
-    res.status(400).send("ERROR : " + err.message);
-  }
-});
-app.post("/login", async (req, res) => {
-  try {
-    const { emailId, password } = req.body;
-
-    const user = await User.findOne({ emailId: emailId });
-
-    if (!user) {
-      throw new Error("Invalid Creds");
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (isPasswordValid) {
-      const token = await jwt.sign({ _id: user._id }, "DEV@TINDER$790");
-      console.log(token);
-      res.cookie("token", token);
-      res.send("Login Succesfull!!!");
-    } else {
-      throw new Error("Invalid Creds");
-    }
-  } catch (err) {
-    res.status(400).send("ERROR : " + err.message);
-  }
-});
-
-app.get("/profile", async (req, res) => {
-  res.send("REading Cookie");
-});
 app.get("/user", async (req, res) => {
   const firstName = req.body.firstName;
 
@@ -142,6 +91,16 @@ app.patch("/user/:userId", async (req, res) => {
     res.status(400).send("Update Failed" + err.message);
   }
 });
+
+
+const { authRouter } = require('./src/routes/auth')
+const { profileRouter } = require('./src/routes/profile')
+const { requestRouter } = require('./src/routes/request')
+
+
+app.use("/", authRouter)
+app.use("/", profileRouter)
+app.use("/", requestRouter)
 
 connectDB()
   .then(() => {
