@@ -23,18 +23,6 @@ app.get("/user", async (req, res) => {
   }
 });
 
-app.get("/feed", async (req, res) => {
-  const firstName = req.body.firstName;
-
-  try {
-    const user = await User.find({ firstName: firstName });
-
-    res.send(user);
-  } catch (err) {
-    res.status(400).send("Something went wrong");
-  }
-});
-
 app.delete("/user", async (req, res) => {
   const userId = req.body.userId;
 
@@ -96,11 +84,13 @@ app.patch("/user/:userId", async (req, res) => {
 const { authRouter } = require('./src/routes/auth')
 const { profileRouter } = require('./src/routes/profile')
 const { requestRouter } = require('./src/routes/request')
+const userRouter = require('./src/routes/user')
 
 
 app.use("/", authRouter)
 app.use("/", profileRouter)
 app.use("/", requestRouter)
+app.use("/", userRouter)
 
 connectDB()
   .then(() => {
