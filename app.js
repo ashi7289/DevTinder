@@ -13,10 +13,12 @@ app.use(cors({
 }))
 app.use("/", router);
 
+require("dotenv").config()
+
 connectDB()
   .then(() => {
     console.log("Database Connection Established..");
-    app.listen(3000, () => {
+    app.listen(process.env.PORT, () => {
       console.log("Connected");
     });
   })
