@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const app = express();
 const connectDB = require("./src/config/database");
@@ -12,8 +13,6 @@ app.use(cors({
   credentials: true
 }))
 app.use("/", router);
-
-require("dotenv").config()
 
 connectDB()
   .then(() => {
