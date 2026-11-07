@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("./src/utils/cronjob")
 const express = require("express");
 const app = express();
 const connectDB = require("./src/config/database");
