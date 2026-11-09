@@ -22,7 +22,6 @@ cron.schedule("0 8 * * *", async () => {
     const listOfEmails = [
       ...new Set(pendingRequests.map((req) => req.toUserId.emailId)),
     ];
-    console.log(listOfEmails);
 
     for (const email of listOfEmails) {
       // Send Emails
@@ -32,13 +31,10 @@ cron.schedule("0 8 * * *", async () => {
           "Ther eare so many frined reuests pending, please login to DevTinder",
           email,
         );
-        console.log(res);
       } catch (err) {
-        console.log(err);
         
       }
     }
   } catch (err) {
-    console.error(err);
   }
 });

@@ -52,7 +52,6 @@ requestRouter.post(
         req.user.firstName + " is " + status + " in " + toUser.firstName,
         toUser.emailId,
       );
-      console.log(emailRes);
 
       res.json({
         message:

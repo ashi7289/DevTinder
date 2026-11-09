@@ -56,7 +56,6 @@ const initializeSocket = (server) => {
 
     socket.on("joinChat", ({ targetUserId }) => {
       const roomId = getSecretRoomId(userId, targetUserId);
-      console.log(firstName + " joined " + roomId);
       socket.join(roomId);
     });
 
@@ -64,7 +63,6 @@ const initializeSocket = (server) => {
       // Save messages to the database
       try {
         const roomId = getSecretRoomId(userId, targetUserId);
-        console.log(firstName + " " + text);
 
         let chat = await Chat.findOne({
           participants: { $all: [userId, targetUserId] },
@@ -85,7 +83,6 @@ const initializeSocket = (server) => {
         await chat.save();
         io.to(roomId).emit("messageReceived", { firstName, lastName, text });
       } catch (err) {
-        console.log(err);
       }
     });
 

@@ -23,12 +23,8 @@ initializeSocket(server);
 
 connectDB()
   .then(() => {
-    console.log("Database Connection Established..");
     server.listen(process.env.PORT, () => {
-      console.log("Connected");
     });
   })
   .catch((err) => {
-    console.log("Database cannot be Connected..");
-    console.error(err.message);
   });
