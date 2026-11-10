@@ -55,6 +55,9 @@ const initializeSocket = (server) => {
     const userId = socket.user._id.toString();
     const { firstName, lastName } = socket.user;
 
+    // Personal room: reaches every open tab of this user (for unread counts)
+    socket.join("user:" + userId);
+
     socket.on("joinChat", async ({ targetUserId }) => {
       try {
         // Not connected → don't let them into the room
@@ -97,9 +100,41 @@ const initializeSocket = (server) => {
         });
 
         await chat.save();
-        io.to(roomId).emit("messageReceived", { firstName, lastName, text });
+
+        const savedMessage = chat.messages[chat.messages.length - 1];
+        // Bump the receiver's unread count, wherever they are in the app
+        io.to("user:" + targetUserId).emit("newMessage", { fromUserId: userId });
+
+        io.to(roomId).emit("messageReceived", {
+          senderId: userId,
+          firstName,
+          lastName,
+          text,
+          createdAt: savedMessage.createdAt,
+        });
       } catch (err) {
       }
+    });
+
+    // The user has read this chat up to now
+    socket.on("markRead", async ({ targetUserId }) => {
+      try {
+        const readAt = new Date();
+
+        // Only updates a chat the user is part of, and only their own lastRead
+        const { matchedCount } = await Chat.updateOne(
+          { participants: { $all: [userId, targetUserId] } },
+          { $set: { ["lastRead." + userId]: readAt } }
+        );
+        if (!matchedCount) return;
+
+        // Tell the other person so their "Seen" updates live
+        const roomId = getSecretRoomId(userId, targetUserId);
+        socket.to(roomId).emit("messagesRead", { userId, readAt });
+
+        // Clear the unread count in all of my tabs
+        io.to("user:" + userId).emit("chatRead", { targetUserId });
+      } catch (err) {}
     });
 
     socket.on("disconnect", () => {});

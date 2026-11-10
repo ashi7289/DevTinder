@@ -20,6 +20,9 @@ const chatSchema = new mongoose.Schema({
     { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   ],
   messages: [messageSchema],
+  // When each participant last read this chat: { userId: Date }
+  // A message is "seen" if it was sent before the other person's lastRead time
+  lastRead: { type: Map, of: Date, default: {} },
 });
 
 const Chat = mongoose.model("Chat", chatSchema);
