@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const { Chat } = require("../models/chat");
+const isConnected = require("./isConnected");
 
 const getSecretRoomId = (userId, targetUserId) => {
   return crypto
@@ -54,14 +55,29 @@ const initializeSocket = (server) => {
     const userId = socket.user._id.toString();
     const { firstName, lastName } = socket.user;
 
-    socket.on("joinChat", ({ targetUserId }) => {
-      const roomId = getSecretRoomId(userId, targetUserId);
-      socket.join(roomId);
+    socket.on("joinChat", async ({ targetUserId }) => {
+      try {
+        // Not connected → don't let them into the room
+        if (!(await isConnected(userId, targetUserId))) {
+          return socket.emit("chatError", {
+            message: "You can only chat with your connections",
+          });
+        }
+        const roomId = getSecretRoomId(userId, targetUserId);
+        socket.join(roomId);
+      } catch (err) {}
     });
 
     socket.on("sendMessage", async ({ targetUserId, text }) => {
       // Save messages to the database
       try {
+        // Not connected → don't save or send the message
+        if (!(await isConnected(userId, targetUserId))) {
+          return socket.emit("chatError", {
+            message: "You can only chat with your connections",
+          });
+        }
+
         const roomId = getSecretRoomId(userId, targetUserId);
 
         let chat = await Chat.findOne({

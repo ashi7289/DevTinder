@@ -1,6 +1,7 @@
 const express = require("express");
 const { userAuth } = require("../middlewares/auth");
 const { Chat } = require("../models/chat");
+const isConnected = require("../utils/isConnected");
 
 const chatRouter = express.Router();
 
@@ -9,6 +10,13 @@ chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
   const userId = req.user._id;
 
   try {
+    // Only connected users (accepted request) can chat
+    if (!(await isConnected(userId, targetUserId))) {
+      return res
+        .status(403)
+        .json({ message: "You can only chat with your connections" });
+    }
+
     let chat = await Chat.findOne({
       participants: { $all: [userId, targetUserId] },
     }).populate({
