@@ -4,6 +4,23 @@ const profileRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const { validationEditProfileData } = require("../utils/validation");
 const deleteUserCompletely = require("../utils/deleteUser");
+const multer = require("multer");
+const {
+  uploadProfilePhoto,
+  deleteProfilePhoto,
+  ALLOWED_PHOTO_TYPES,
+} = require("../utils/s3Client");
+
+// Keep the file in memory (it goes straight to S3), max 2 MB, images only
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_PHOTO_TYPES.includes(file.mimetype)) return cb(null, true);
+    cb(new Error("Only JPG, PNG, WEBP or GIF images are allowed"));
+  },
+}).single("photo");
+
 profileRouter.get("/profile/view", userAuth, async (req, res) => {
   try {
     const user = req.user;
@@ -30,6 +47,37 @@ profileRouter.patch("/profile/edit", userAuth, async (req, res) => {
     res.status(400).send("ERROR: " + err.message);
   }
 });
+// Upload a new profile photo from the device (form field name: "photo")
+profileRouter.post("/profile/photo", userAuth, (req, res) => {
+  photoUpload(req, res, async (uploadErr) => {
+    try {
+      if (uploadErr) {
+        const message =
+          uploadErr.code === "LIMIT_FILE_SIZE"
+            ? "Image must be smaller than 2 MB"
+            : uploadErr.message;
+        return res.status(400).json({ message });
+      }
+      if (!req.file) {
+        return res.status(400).json({ message: "Please choose an image" });
+      }
+
+      const user = req.user;
+      const oldPhotoUrl = user.photoUrl;
+
+      user.photoUrl = await uploadProfilePhoto(user._id, req.file);
+      await user.save();
+
+      // Remove the previous upload so old photos don't pile up in S3
+      deleteProfilePhoto(oldPhotoUrl).catch(() => {});
+
+      res.json({ message: "Photo updated", data: user });
+    } catch (err) {
+      res.status(400).json({ message: "ERROR: " + err.message });
+    }
+  });
+});
+
 // Permanently delete the logged-in user's account (password required)
 profileRouter.delete("/profile/delete", userAuth, async (req, res) => {
   try {
@@ -41,6 +89,7 @@ profileRouter.delete("/profile/delete", userAuth, async (req, res) => {
     }
 
     await deleteUserCompletely(user._id);
+    deleteProfilePhoto(user.photoUrl).catch(() => {});
 
     // Log them out
     res.cookie("token", null, { expires: new Date(Date.now()) });

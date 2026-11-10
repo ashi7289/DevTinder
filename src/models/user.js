@@ -28,18 +28,20 @@ const userSchema = mongoose.Schema(
         }
       },
     },
+    // Stored as a bcrypt hash, so strength is checked on the plain password
+    // before hashing (see utils/validation.js), not here
     password: {
       required: true,
       type: String,
-      validate(value) {
-        if (!validator.isStrongPassword(value)) {
-          throw new error("Gender data is not valid");
-        }
-      },
     },
     age: {
       type: Number,
-      min: 18,
+      min: [18, "You must be at least 18 years old"],
+      max: [100, "Age must be 100 or less"],
+      validate: {
+        validator: Number.isInteger,
+        message: "Age must be a whole number",
+      },
     },
     gender: {
       type: String,
