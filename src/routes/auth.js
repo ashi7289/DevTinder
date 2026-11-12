@@ -10,6 +10,15 @@ authRouter.post("/signup", async (req, res) => {
     validationSignUpData(req);
 
     const { firstName, lastName, emailId, password } = req.body;
+
+    // Schema stores emailId trimmed + lowercased, so compare the same way
+    const existingUser = await User.findOne({
+      emailId: emailId.trim().toLowerCase(),
+    });
+    if (existingUser) {
+      return res.status(409).send("This email already exists");
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = new User({
@@ -24,10 +33,12 @@ authRouter.post("/signup", async (req, res) => {
       res.cookie("token", token, {
         expires: new Date(Date.now() + 8 * 3600000),
       });
-      res.send(user);
-
-    res.json({ message: "User added Successfully", data: savedUser });
+    res.send(savedUser);
   } catch (err) {
+    // Unique index violation (e.g. two signups with the same email at once)
+    if (err.code === 11000) {
+      return res.status(409).send("This email already exists");
+    }
     res.status(400).send("ERROR : " + err.message);
   }
 });
