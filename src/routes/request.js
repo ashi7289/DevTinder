@@ -47,11 +47,19 @@ requestRouter.post(
 
       const data = await connectionRequest.save();
 
-      const emailRes = await sendEmail.run(
-        "A new friend request from " + req.user.firstName,
-        req.user.firstName + " is " + status + " in " + toUser.firstName,
-        toUser.emailId,
-      );
+      // Notify only on "interested", and never let an email failure fail the
+      // request: it's already saved, so a 400 here would leave the UI out of sync
+      if (status === "interested") {
+        sendEmail
+          .run(
+            "A new connection request from " + req.user.firstName,
+            req.user.firstName + " is interested in " + toUser.firstName,
+            toUser.emailId,
+          )
+          .catch((err) =>
+            console.error("Request email failed:", err.message),
+          );
+      }
 
       res.json({
         message:
