@@ -1,4 +1,10 @@
 const validator = require("validator");
+const { RegExpMatcher, englishDataset, englishRecommendedTransformers, pattern } = require("obscenity");
+
+// Library list of sexual/abusive words (also catches "s3x") + a few extras
+const extraWords = ["nude", "naked", "nsfw", "onlyfans"];
+const dataset = extraWords.reduce((d, w) => d.addPhrase((p) => p.addPattern(pattern`|${w}`)), englishDataset);
+const profanity = new RegExpMatcher({ ...dataset.build(), ...englishRecommendedTransformers });
 
 const PASSWORD_RULES =
   "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number and a symbol";
@@ -18,6 +24,15 @@ const validateAge = (age) => {
   if (value > 100) throw new Error("Age must be 100 or less");
 };
 
+const validateSkills = (skills) => {
+  if (!Array.isArray(skills) || skills.length > 20) throw new Error("Add at most 20 skills");
+  for (const skill of skills) {
+    if (!/^(?=.*[a-z])[\w+#.\-/& ]{1,30}$/i.test(skill)) throw new Error(`"${skill}" is not a valid skill`);
+    const joined = skill.replace(/\b(\w)\W+(?=\w\b)/g, "$1"); // "f u c k" -> "fuck"
+    if (profanity.hasMatch(skill) || profanity.hasMatch(joined)) throw new Error(`"${skill}" is not allowed`);
+  }
+};
+
 const validationSignUpData = (req) => {
   const { firstName, lastName, emailId, password } = req.body;
 
@@ -32,7 +47,7 @@ const validationEditProfileData = (req) => {
   const allowedEditFields = [
     "firstName",
     "lastName",
-    "emailId",
+    // emailId is the login ID, so it can't be edited
     "gender",
     "age",
     "about",
@@ -42,12 +57,16 @@ const validationEditProfileData = (req) => {
   const isEditAllowed = Object.keys(req.body).every((field) =>
     allowedEditFields.includes(field),
   );
-  if (isEditAllowed) validateAge(req.body.age);
-  return isEditAllowed;
+  if (!isEditAllowed) return false;
+
+  validateAge(req.body.age);
+  if (req.body.skills !== undefined) validateSkills(req.body.skills);
+  return true;
 };
 module.exports = {
   validationSignUpData,
   validationEditProfileData,
   validatePassword,
   validateAge,
+  validateSkills,
 };
