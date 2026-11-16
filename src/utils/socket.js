@@ -4,6 +4,21 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const { Chat } = require("../models/chat");
 const isConnected = require("./isConnected");
+const ConnectionRequestModel = require("../models/connectionRequest");
+
+// Ids of everyone this user has an accepted connection with
+const getConnectionIds = async (userId) => {
+  const connections = await ConnectionRequestModel.find({
+    status: "accepted",
+    $or: [{ fromUserId: userId }, { toUserId: userId }],
+  }).select("fromUserId toUserId");
+
+  return connections.map((c) =>
+    c.fromUserId.toString() === userId
+      ? c.toUserId.toString()
+      : c.fromUserId.toString()
+  );
+};
 
 const getSecretRoomId = (userId, targetUserId) => {
   return crypto
@@ -57,6 +72,35 @@ const initializeSocket = (server) => {
 
     // Personal room: reaches every open tab of this user (for unread counts)
     socket.join("user:" + userId);
+
+    // A user is online while their personal room has at least one socket (tab)
+    const isOnline = (id) => io.sockets.adapter.rooms.has("user:" + id);
+
+    // Tell this user's connections that they came online / went offline
+    const broadcastPresence = async (online) => {
+      try {
+        const ids = await getConnectionIds(userId);
+        ids.forEach((id) =>
+          io.to("user:" + id).emit("presence", { userId, online })
+        );
+      } catch (err) {}
+    };
+
+    // First tab opened → now online
+    if (io.sockets.adapter.rooms.get("user:" + userId)?.size === 1) {
+      broadcastPresence(true);
+    }
+
+    // Client asks which of its connections are online right now (with ack)
+    socket.on("getOnlineConnections", async (callback) => {
+      if (typeof callback !== "function") return;
+      try {
+        const ids = await getConnectionIds(userId);
+        callback(ids.filter(isOnline));
+      } catch (err) {
+        callback([]);
+      }
+    });
 
     socket.on("joinChat", async ({ targetUserId }) => {
       try {
@@ -137,7 +181,10 @@ const initializeSocket = (server) => {
       } catch (err) {}
     });
 
-    socket.on("disconnect", () => {});
+    // Rooms are already left here, so an empty personal room = last tab closed
+    socket.on("disconnect", () => {
+      if (!isOnline(userId)) broadcastPresence(false);
+    });
   });
 };
 
