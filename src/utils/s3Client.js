@@ -5,19 +5,25 @@ const {
   DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
 
-const REGION = process.env.AWS_S3_REGION || "eu-north-1";
-const BUCKET = process.env.AWS_S3_BUCKET;
+const { getCredentials, getS3Region } = require("../config/aws");
+
 const PHOTO_FOLDER = "profile-photos/";
 
-const s3Client = new S3Client({
-  region: REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY,
-    secretAccessKey: process.env.AWS_SECRET_KEY,
-  },
-});
+// Env vars are read when these run (after dotenv has loaded), not at import
+const getBucket = () => process.env.AWS_S3_BUCKET;
+const getBucketUrl = () =>
+  `https://${getBucket()}.s3.${getS3Region()}.amazonaws.com/`;
 
-const BUCKET_URL = `https://${BUCKET}.s3.${REGION}.amazonaws.com/`;
+let client;
+const getS3Client = () => {
+  if (!client) {
+    client = new S3Client({
+      region: getS3Region(),
+      credentials: getCredentials(),
+    });
+  }
+  return client;
+};
 
 const EXTENSIONS = {
   "image/jpeg": "jpg",
@@ -28,31 +34,34 @@ const EXTENSIONS = {
 
 // Upload a profile photo and return its public URL
 const uploadProfilePhoto = async (userId, file) => {
-  if (!BUCKET) throw new Error("AWS_S3_BUCKET is not set");
+  const bucket = getBucket();
+  if (!bucket) throw new Error("AWS_S3_BUCKET is not set");
 
   // Random name so a new photo never reuses an old (cached) URL
   const key = `${PHOTO_FOLDER}${userId}-${crypto.randomUUID()}.${EXTENSIONS[file.mimetype]}`;
 
-  await s3Client.send(
+  await getS3Client().send(
     new PutObjectCommand({
-      Bucket: BUCKET,
+      Bucket: bucket,
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
     })
   );
 
-  return BUCKET_URL + key;
+  return getBucketUrl() + key;
 };
 
 // Delete a photo, but only if it's one we uploaded (not the default avatar)
 const deleteProfilePhoto = async (photoUrl) => {
-  if (!BUCKET || !photoUrl?.startsWith(BUCKET_URL + PHOTO_FOLDER)) return;
+  const bucket = getBucket();
+  const bucketUrl = getBucketUrl();
+  if (!bucket || !photoUrl?.startsWith(bucketUrl + PHOTO_FOLDER)) return;
 
-  await s3Client.send(
+  await getS3Client().send(
     new DeleteObjectCommand({
-      Bucket: BUCKET,
-      Key: photoUrl.slice(BUCKET_URL.length),
+      Bucket: bucket,
+      Key: photoUrl.slice(bucketUrl.length),
     })
   );
 };

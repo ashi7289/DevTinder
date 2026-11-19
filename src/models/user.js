@@ -72,6 +72,15 @@ const userSchema = mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: {
+      // Never send the password hash to the client. Applies to every
+      // res.send(user) / res.json(user), so no route can leak it by mistake.
+      // user.password is still readable in code (bcrypt.compare).
+      transform: (doc, ret) => {
+        delete ret.password;
+        return ret;
+      },
+    },
   },
 );
 

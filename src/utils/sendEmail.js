@@ -1,5 +1,5 @@
 const { SendEmailCommand } = require("@aws-sdk/client-ses");
-const { sesClient } = require("./sesClient.js");
+const { getSesClient } = require("./sesClient.js");
 
 const createSendEmailCommand = (toAddress, fromAddress, subject, body) => {
   return new SendEmailCommand({
@@ -47,7 +47,7 @@ const run = async (subject, body, toAddress) => {
   );
 
   try {
-    return await sesClient.send(sendEmailCommand);
+    return await getSesClient().send(sendEmailCommand);
   } catch (caught) {
     if (caught instanceof Error && caught.name === "MessageRejected") {
       const messageRejectedError = caught;

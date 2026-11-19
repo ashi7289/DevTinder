@@ -7,15 +7,11 @@ const cookieParser = require("cookie-parser");
 const router = require("./src/routes");
 const cors = require("cors");
 const http = require("http");
+const { getCorsOptions } = require("./src/config/security");
 const initializeSocket = require("./src/utils/socket");
 app.use(cookieParser());
 app.use(express.json());
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  }),
-);
+app.use(cors(getCorsOptions()));
 app.use("/", router);
 
 const server = http.createServer(app);

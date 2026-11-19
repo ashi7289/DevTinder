@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const { Chat } = require("../models/chat");
+const { getCorsOptions } = require("../config/security");
 const isConnected = require("./isConnected");
 const ConnectionRequestModel = require("../models/connectionRequest");
 
@@ -37,12 +38,7 @@ const getTokenFromCookie = (cookieHeader = "") => {
 };
 
 const initializeSocket = (server) => {
-  const io = socket(server, {
-    cors: {
-      origin: "http://localhost:5173",
-      credentials: true,
-    },
-  });
+  const io = socket(server, { cors: getCorsOptions() });
 
   // Auth middleware: runs once for every new socket connection
   io.use(async (socket, next) => {

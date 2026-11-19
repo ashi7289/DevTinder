@@ -4,6 +4,7 @@ const profileRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const { validationEditProfileData } = require("../utils/validation");
 const deleteUserCompletely = require("../utils/deleteUser");
+const { clearAuthCookie } = require("../config/security");
 const multer = require("multer");
 const {
   uploadProfilePhoto,
@@ -92,7 +93,7 @@ profileRouter.delete("/profile/delete", userAuth, async (req, res) => {
     deleteProfilePhoto(user.photoUrl).catch(() => {});
 
     // Log them out
-    res.cookie("token", null, { expires: new Date(Date.now()) });
+    clearAuthCookie(res);
     res.json({ message: "Account deleted successfully" });
   } catch (err) {
     res.status(400).json({ message: "ERROR: " + err.message });

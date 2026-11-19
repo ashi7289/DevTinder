@@ -5,22 +5,27 @@ const userAuth = async (req, res, next) => {
   try {
     const { token } = req.cookies;
     if (!token) {
-      throw res.status(401).send("Please Login!")
+      return res.status(401).send("Please Login!");
     }
 
-    const decodedObj = await jwt.verify(token, process.env.JWT_SECRET);
+    let decodedObj;
+    try {
+      decodedObj = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      // Expired, tampered or malformed token: the client must log in again
+      return res.status(401).send("Session expired, please login again");
+    }
 
-    const { _id } = decodedObj;
-
-    const user = await User.findById(_id);
+    const user = await User.findById(decodedObj._id);
     if (!user) {
-      throw new Error("User not found");
+      return res.status(401).send("User not found, please login again");
     }
 
     req.user = user;
     next();
   } catch (err) {
-    res.status(400).send("ERROR: " + err.message);
+    // Anything else (e.g. database down) is our fault, not the client's
+    res.status(500).send("ERROR: " + err.message);
   }
 };
 

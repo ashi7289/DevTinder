@@ -4,6 +4,7 @@ const { userAuth } = require("../middlewares/auth");
 const authRouter = express.Router();
 const { validationSignUpData } = require("../utils/validation");
 const bcrypt = require("bcrypt");
+const { setAuthCookie, clearAuthCookie } = require("../config/security");
 
 authRouter.post("/signup", async (req, res) => {
   try {
@@ -30,9 +31,7 @@ authRouter.post("/signup", async (req, res) => {
 
     const savedUser = await user.save();
      const token = await savedUser.getJWT();
-      res.cookie("token", token, {
-        expires: new Date(Date.now() + 8 * 3600000),
-      });
+      setAuthCookie(res, token);
     res.send(savedUser);
   } catch (err) {
     // Unique index violation (e.g. two signups with the same email at once)
@@ -57,9 +56,7 @@ authRouter.post("/login", async (req, res) => {
 
     if (isPasswordValid) {
       const token = await user.getJWT();
-      res.cookie("token", token, {
-        expires: new Date(Date.now() + 8 * 3600000),
-      });
+      setAuthCookie(res, token);
       res.send(user);
     } else {
       throw new Error("Invalid Creds");
@@ -70,9 +67,7 @@ authRouter.post("/login", async (req, res) => {
 });
 
 authRouter.post("/logout", async (req, res) => {
-  res.cookie("token", null, {
-    expires: new Date(Date.now()),
-  });
+  clearAuthCookie(res);
   res.send("Logout Successful!!");
 });
 
